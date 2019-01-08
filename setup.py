@@ -1,4 +1,10 @@
-from setuptools import setup
+from setuptools import setup, find_packages
+
+
+def get_requirements():
+    with open("requirements.txt") as reqs_file:
+        reqs = reqs_file.read().split("\n")
+    return reqs
 
 setup(
     name='TestBlame',
@@ -7,11 +13,7 @@ setup(
     author="Omkar Khatavkar",
     author_email="okhatavkar007@gmail.com",
     py_module=['testblame'],
-    install_requires=[
-        'Click',
-    ],
-    entry_points='''
-        [console_scripts]
-        testblame=testblame:cli
-    ''',
+    install_requires=get_requirements(),
+    packages=find_packages("testblame"),
+    entry_points={"console_scripts": ["testblame=testblame:cli"]},
 )
