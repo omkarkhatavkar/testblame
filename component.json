@@ -1,0 +1,5 @@
+{
+    "Omkar" : ["UI_Test_Dashboard", "UI_Test_Contact", "SMOKE_TEST"],
+    "Rakesh"  : ["API_TEST_CONTACT"]
+
+}
