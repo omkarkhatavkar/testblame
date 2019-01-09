@@ -106,7 +106,6 @@ def collect_failed_tests(url):
 
 def get_test_blame(test, test_name, test_path, email, filter=""):
     try:
-
         if not test_path.endswith('.py'):
             test_path = check_test_path(test_name=test_name, test_path=test_path, filter=filter)
         if isinstance(test_path, list):
@@ -202,7 +201,7 @@ def show_my_tests(config, local_repo, filter, email, skip):
             if skip not in test and email is not None and str(filter) not in test:
                 test_name = str(test).split('.')[-1]
                 if local_repo is None:
-                    repo_path = config.repo_path + "/".join(test.split('.')[:2])
+                    repo_path = config.repo_path + "/".join(test.split('.')[:1])
                     test_name = get_test_blame(test, test_name, repo_path, email, filter)
                 elif local_repo is not None:
                     test_name = get_test_blame(test, test_name, local_repo, email, filter)
@@ -277,6 +276,11 @@ def send_email_report(config, local_repo, email, skip, filter,
                                     author_tests[author].append(test)
                                 break
     content = build_content(author_tests)
+    for author, tests in author_tests.items():
+        echo_error("==" * 55)
+        echo_error("{: ^50s}".format(author))
+        echo_error("==" * 55)
+        echo_error("\n".join(tests))
     send_email(from_email=from_email, to_email=to_email,
                content=content, subject=subject)
     if not len(author_tests) == 0:
