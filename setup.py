@@ -1,4 +1,5 @@
-from setuptools import setup
+from setuptools import setup, find_packages
+
 
 with open('README.md', 'r', encoding='utf-8') as handle:
     LONG_DESCRIPTION = handle.read()
@@ -18,10 +19,8 @@ setup(
     url="https://github.com/omkarkhatavkar/testblame",
     py_modules=['testblame'],
     install_requires=required,
-    entry_points='''
-        [console_scripts]
-        testblame=testblame:cli
-    ''',
+    packages=find_packages("testblame"),
+    entry_points={"console_scripts": ["testblame=testblame:cli"]},
     license='MIT',
     classifiers=[
         'License :: OSI Approved :: MIT License',
