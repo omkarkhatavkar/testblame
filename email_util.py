@@ -18,6 +18,14 @@ def send_email(from_email, to_email, subject, content):
         print(err)
 
 
+def save_email_content(html):
+    # open file with *.html* extension to write html
+    file = open("email.html", "w")
+    # write then close file
+    file.write(html)
+    file.close()
+
+
 def build_content(tests):
     with open('email_template', 'r') as myfile:
         email_content = myfile.read()
@@ -30,4 +38,5 @@ def build_content(tests):
             main_col = author_col + test_col + "</tr>"
             email_content = email_content + main_col
     email_content = email_content + "</table></body></html>"
+    save_email_content(email_content)
     return email_content
