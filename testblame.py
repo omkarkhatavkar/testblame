@@ -249,6 +249,7 @@ def send_email_report(config, local_repo, email, skip, filter,
     failed_tests = get_all_failed_tests()
     author_tests = {}
     git_blame = ()
+    repo_path = local_repo
     if component is None:
         with click.progressbar(failed_tests, label='Searching failed tests') as bar:
             for test in bar:
@@ -268,7 +269,8 @@ def send_email_report(config, local_repo, email, skip, filter,
             for test in bar:
                 if skip not in test and str(filter) not in test:
                     test_name = str(test).split('.')[-1]
-                    repo_path = config.repo_path + "/".join(test.split('.')[:2])
+                    if local_repo is None:
+                        repo_path = config.repo_path + "/".join(test.split('.')[:2])
                     test_path = check_test_path(test_name=test_name, test_path=repo_path, filter=None)
                     if isinstance(test_path, list):
                         test_path = remove_duplicate_test(test_path, test)
