@@ -14,7 +14,7 @@ requests.packages.urllib3.disable_warnings()
 class Config(object):
 
     def __init__(self):
-        self.repo_path = "/test/test_repo/"
+        self.repo_path = "/tmp/test_repo/"
 
 
 pass_config = click.make_pass_decorator(Config, ensure=True)
@@ -146,7 +146,7 @@ def cli():
               help="Pass the git url for test repo ")
 @click.option('--jenkins-url', default="",
               help="Pass the jenkins url to collect the failed tests")
-@click.option('--clone-path', default="/test/test_repo/",
+@click.option('--clone-path', default="/tmp/test_repo/",
               help="Pass the path to clone repos to",)
 @pass_config
 def set_config(config, git_url, jenkins_url, clone_path):
@@ -171,7 +171,7 @@ def set_config(config, git_url, jenkins_url, clone_path):
 @cli.command()
 @click.option('--jenkins-url', default=None,
               help="Pass the jenkins url to collect the failed tests")
-@click.option('--clone-path', default="/test/test_repo/",
+@click.option('--clone-path', default="/tmp/test_repo/",
               help="Pass the path to clone repos to",)
 @pass_config
 def refresh_config(config, jenkins_url, clone_path):
