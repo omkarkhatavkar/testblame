@@ -145,11 +145,14 @@ def cli():
 @click.option('--git-url', default="",
               help="Pass the git url for test repo ")
 @click.option('--jenkins-url', default="",
-              help="Pass the jenkins url for to collect the failed tests")
+              help="Pass the jenkins url to collect the failed tests")
+@click.option('--clone-path', default="/test/test_repo/",
+              help="Pass the path to clone repos to",)
 @pass_config
-def set_config(config, git_url, jenkins_url):
+def set_config(config, git_url, jenkins_url, clone_path):
     """Set git_url and jenkins_url to collect the
     failed tests"""
+    config.repo_path = clone_path
     if os.path.exists(config.repo_path):
         shutil.rmtree(config.repo_path)
     try:
@@ -167,17 +170,20 @@ def set_config(config, git_url, jenkins_url):
 
 @cli.command()
 @click.option('--jenkins-url', default=None,
-              help="Pass the jenkins url for to collect the failed tests")
+              help="Pass the jenkins url to collect the failed tests")
+@click.option('--clone-path', default="/test/test_repo/",
+              help="Pass the path to clone repos to",)
 @pass_config
-def refresh_config(config, jenkins_url):
-    """Update config, pass new jenkins test-result url"""
+def refresh_config(config, jenkins_url, clone_path):
+    """Update config, pass new jenkins test-result url and clone-path"""
+    config.repo_path = clone_path
     if jenkins_url is not None:
         if config.repo_path is not None:
             git_pull(config.repo_path)
         failed_tests = collect_failed_tests(jenkins_url)
         with open('/tmp/failed_tests.txt', 'w') as filehandle:
             json.dump(failed_tests, filehandle)
-        echo_success("Configs are refresh successfully !")
+        echo_success("Configs are refreshed successfully !")
     else:
         echo_error("Something went wrong !")
 
