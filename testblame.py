@@ -50,7 +50,13 @@ def get_directory(file_path):
 def get_all_failed_tests():
     with open('/tmp/failed_tests.txt', 'r') as filehandle:
         failed_tests = json.load(filehandle)
-        return failed_tests
+        return failed_tests['failed_tests']
+
+
+def get_jenkins_url():
+    with open('/tmp/failed_tests.txt', 'r') as filehandle:
+        failed_tests = json.load(filehandle)
+        return failed_tests['jenkins_url']
 
 
 def get_author_details(author_file):
@@ -184,8 +190,10 @@ def set_config(config, git_url, jenkins_url, clone_path):
         if None not in (git_url, jenkins_url):
             git_clone(git_url, config.repo_path)
             failed_tests = collect_failed_tests(jenkins_url)
+            data_dict = {'failed_tests': failed_tests}
+            data_dict['jenkins_url'] = jenkins_url
             with open('/tmp/failed_tests.txt', 'w') as filehandle:
-                json.dump(failed_tests, filehandle)
+                json.dump(data_dict, filehandle)
             echo_success("Configs are set correctly !")
         else:
             echo_error("Something went wrong !")
@@ -206,8 +214,10 @@ def refresh_config(config, jenkins_url, clone_path):
         if config.repo_path is not None:
             git_pull(config.repo_path)
         failed_tests = collect_failed_tests(jenkins_url)
+        data_dict = {'failed_tests': failed_tests}
+        data_dict['jenkins_url'] = jenkins_url
         with open('/tmp/failed_tests.txt', 'w') as filehandle:
-            json.dump(failed_tests, filehandle)
+            json.dump(data_dict, filehandle)
         echo_success("Configs are refreshed successfully !")
     else:
         echo_error("Something went wrong !")
@@ -267,9 +277,11 @@ def show_my_tests(config, local_repo, filter, email, skip):
               help="Pass subject")
 @click.option('--component', default=None,
               help="pass json file path containing author and component tags")
+@click.option('--with-link', default=None,
+              help="pass this param to make the test as link")
 @pass_config
 def send_email_report(config, local_repo, email, skip, filter,
-                      from_email, to_email, subject, component):
+                      from_email, to_email, subject, component, with_link):
     """Send an email report based on git commit history"""
     failed_tests = get_all_failed_tests()
     author_tests = {}
@@ -308,7 +320,7 @@ def send_email_report(config, local_repo, email, skip, filter,
                                 else:
                                     author_tests[author].append(test)
                                 break
-    content = build_content(author_tests)
+    content = build_content(author_tests, get_jenkins_url(), with_link)
     for author, tests in author_tests.items():
         echo_error("==" * 55)
         echo_error("{: ^50s}".format(author))
