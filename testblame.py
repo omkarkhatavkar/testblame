@@ -71,8 +71,9 @@ def check_test_path(test_name, test_path, filter):
             return test_path.split('\n')
         return test_path
     except subprocess.CalledProcessError:
-        echo_error(test_name + " got Skipped !")
-        return "error"
+        for index in range(len(test_name)):
+            test_new_name = test_name[:len(test_name)-index]
+        return check_test_path(test_new_name, test_path, filter=None)
 
 
 def get_git_blame_output(test_name, test_path):
