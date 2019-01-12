@@ -5,6 +5,7 @@ import subprocess
 import operator
 import click
 import requests
+import re
 from lxml import html
 from email_util import send_email, build_content
 
@@ -59,15 +60,19 @@ def get_author_details(author_file):
 
 
 def check_test_path(test_name, test_path, filter):
-    if filter is not None:
-        cmd = ["/bin/grep -rl {0} {1} | grep {2}".format(test_name, test_path, filter)]
-    else:
-        cmd = ["/bin/grep -rl {0} {1} ".format(test_name, test_path)]
-    test_path = (subprocess.check_output
-                 (cmd, shell=True, stderr=subprocess.STDOUT)).decode('utf-8').rstrip()
-    if len(test_path.split('\n')) > 1:
-        return test_path.split('\n')
-    return test_path
+    try:
+        if filter is not None:
+            cmd = ["/bin/grep -rl {0} {1} | grep {2}".format(test_name, test_path, filter)]
+        else:
+            cmd = ["/bin/grep -rl {0} {1} ".format(test_name, test_path)]
+        test_path = (subprocess.check_output
+                     (cmd, shell=True, stderr=subprocess.STDOUT)).decode('utf-8').rstrip()
+        if len(test_path.split('\n')) > 1:
+            return test_path.split('\n')
+        return test_path
+    except subprocess.CalledProcessError:
+        echo_error(test_name + " got Skipped !")
+        return "error"
 
 
 def get_git_blame_output(test_name, test_path):
@@ -132,6 +137,25 @@ def get_test_blame_with_author(test, test_name, test_path, email, filter=""):
         return git_blame
     except subprocess.CalledProcessError:
         return "{0} => Skipped ".format(test)
+
+
+def get_all_tests(test_path, tag):
+    cmd = ["/bin/grep -irC 5 {0} {1}".format(tag, test_path)]
+    occurrences = (subprocess.check_output
+                   (cmd, shell=True, stderr=subprocess.STDOUT)).decode('utf-8').rstrip()
+    python_test = "def test.+\("
+    tests = re.findall(python_test, occurrences)
+    tests = "|".join(tests).replace("def", "").replace("(", "").rstrip()
+    return tests
+
+
+def find_tests(tag, repo_path):
+    test_paths = (check_test_path(test_name=tag, test_path=repo_path, filter=None))
+    test_map = {}
+    for test_path in test_paths:
+        tests = get_all_tests(test_path, tag)
+        test_map[test_path] = tests
+    return test_map
 
 
 @click.group()
@@ -304,3 +328,42 @@ def show_all_tests(config):
     failed_tests = get_all_failed_tests()
     for test in failed_tests:
         echo_error(test)
+
+
+@cli.command()
+@click.option('--local-repo', default="/tmp/test_repo",
+              help="Provide test local repo if required")
+@click.option('--tags', default=None,
+              help="Provide tags to find manual tests."
+                   "e.g. --tags='stubs, notautomated'")
+@click.option('--component', default=None,
+              help="pass json file path containing author and component tags")
+@pass_config
+def show_manual_tests(config, local_repo, tags, component):
+    """Filter and find tests based on tags"""
+    config.repo_path = local_repo
+    test_details = {}
+    if tags is not None:
+        tags = str(tags).split(",")
+        for tag in tags:
+            test_map = find_tests(tag, config.repo_path)
+        author_details = get_author_details(component)
+        for test_path, tests in test_map.items():
+            for author, tags in author_details.items():
+                for tag in tags:
+                    if tag in test_path:
+                        if author not in test_details:
+                            test_details[author] = [{test_path: test_map[test_path]}]
+                        else:
+                            test_details[author].append({test_path: test_map[test_path]})
+                        break
+    for author, author_tests in test_details.items():
+        echo_error("==" * 50)
+        echo_error("{: ^50s}".format(author))
+        echo_error("==" * 50)
+        for test_path in author_tests:
+            for file_path, tests in test_path.items():
+                echo_success("##" * 30)
+                echo_success("{: ^50s}".format(file_path))
+                echo_success("##" * 30)
+                echo_success(tests)
