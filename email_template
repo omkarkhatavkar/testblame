@@ -37,6 +37,14 @@ td.myclass{
   vertical-align:middle;
   color:red;
 }
+a{ display:block; margin-bottom:5px;}
+a:hover{
+        text-decoration: none
+    }
+    a{
+        color: red
+    }
+
 </style>
 </head>
 <body>

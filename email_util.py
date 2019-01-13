@@ -26,7 +26,21 @@ def save_email_content(html):
     file.close()
 
 
-def build_content(tests):
+def make_tests_linkable(test_list, url):
+    """This function make test linkable and very specific to
+    robottelo test suite.
+    """
+    test_list_links = ''
+    for test in test_list:
+        test_split = test.split('.')
+        test_link = '</br><a href="{0}{1}/{2}/{3}" target="_blank">{4}</a></br>'. \
+            format(url, '.'.join(test_split[:-2]), "".join(test_split[-2:-1]),
+                   "".join(test_split[-1:]), test)
+        test_list_links += test_link
+    return test_list_links
+
+
+def build_content(tests, jenkins_url, with_link):
     with open('email_template', 'r') as myfile:
         email_content = myfile.read()
     if isinstance(tests, dict):
@@ -34,9 +48,12 @@ def build_content(tests):
             if '@' in author:
                 author = re.findall("([a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+)", author)[0]
             author_col = "<tr><td>{0}</td>".format(author)
-            test_col = "<td class=myclass>"+"<br/><br/>".join(test_list) + "</td>"
-            main_col = author_col + test_col + "</tr>"
-            email_content = email_content + main_col
+            if with_link is None:
+                table = author_col + "<td class=myclass>"+"<br/><br/>".join(test_list)
+            else:
+                test_col = "<td class=myclass>"
+                table = author_col + test_col + make_tests_linkable(test_list, jenkins_url)
+            email_content = email_content + table + "</td></tr>"
     email_content = email_content + "</table></body></html>"
     save_email_content(email_content)
     return email_content
