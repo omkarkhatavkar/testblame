@@ -6,6 +6,7 @@ import operator
 import click
 import requests
 import re
+import itertools
 from lxml import html
 from email_util import send_email, build_content
 
@@ -50,13 +51,15 @@ def get_directory(file_path):
 def get_all_failed_tests():
     with open('/tmp/failed_tests.txt', 'r') as filehandle:
         failed_tests = json.load(filehandle)
-        return failed_tests['failed_tests']
+        failed_tests = [values for keys, values in failed_tests.items() if 'failed_tests' in keys]
+        failed_tests = list(itertools.chain.from_iterable(failed_tests))
+        return failed_tests
 
 
-def get_jenkins_url():
+def get_jenkins_url_map():
     with open('/tmp/failed_tests.txt', 'r') as filehandle:
         failed_tests = json.load(filehandle)
-        return failed_tests['jenkins_url']
+        return failed_tests
 
 
 def get_author_details(author_file):
@@ -165,6 +168,17 @@ def find_tests(tag, repo_path):
     return test_map
 
 
+def load_jenkins_urls(jenkins_url):
+    jenkins_urls = jenkins_url.split(',')
+    data_dict = {}
+    with open('/tmp/failed_tests.txt', 'w') as filehandle:
+        for index, index_jenkins_url in enumerate(jenkins_urls):
+            failed_tests = collect_failed_tests(index_jenkins_url)
+            data_dict['failed_tests_{}'.format(index)] = failed_tests
+            data_dict['jenkins_url_{}'.format(index)] = index_jenkins_url
+        json.dump(data_dict, filehandle)
+
+
 @click.group()
 def cli():
     """This CLI tool to gather failed tests based on commit history
@@ -189,14 +203,10 @@ def set_config(config, git_url, jenkins_url, clone_path):
     try:
         if None not in (git_url, jenkins_url):
             git_clone(git_url, config.repo_path)
-            failed_tests = collect_failed_tests(jenkins_url)
-            data_dict = {'failed_tests': failed_tests}
-            data_dict['jenkins_url'] = jenkins_url
-            with open('/tmp/failed_tests.txt', 'w') as filehandle:
-                json.dump(data_dict, filehandle)
-            echo_success("Configs are set correctly !")
+            load_jenkins_urls(jenkins_url)
         else:
             echo_error("Something went wrong !")
+        echo_success("Configs are set correctly !")
     except Exception as err:
         click.echo(err)
 
@@ -213,12 +223,7 @@ def refresh_config(config, jenkins_url, clone_path):
     if jenkins_url is not None:
         if config.repo_path is not None:
             git_pull(config.repo_path)
-        failed_tests = collect_failed_tests(jenkins_url)
-        data_dict = {'failed_tests': failed_tests}
-        data_dict['jenkins_url'] = jenkins_url
-        with open('/tmp/failed_tests.txt', 'w') as filehandle:
-            json.dump(data_dict, filehandle)
-        echo_success("Configs are refreshed successfully !")
+        load_jenkins_urls(jenkins_url)
     else:
         echo_error("Something went wrong !")
 
@@ -320,7 +325,10 @@ def send_email_report(config, local_repo, email, skip, filter,
                                 else:
                                     author_tests[author].append(test)
                                 break
-    content = build_content(author_tests, get_jenkins_url(), with_link)
+    if with_link is not None:
+        content = build_content(author_tests, get_jenkins_url_map(), with_link)
+    else:
+        content = build_content(author_tests)
     for author, tests in author_tests.items():
         echo_error("==" * 55)
         echo_error("{: ^50s}".format(author))
