@@ -26,21 +26,29 @@ def save_email_content(html):
     file.close()
 
 
+def get_matched_jenkins_url(test, url_map):
+    for key, values in url_map.items():
+        if test in values:
+            index = re.findall('\d.*', key)[0]
+            return url_map['jenkins_url_{}'.format(index)]
+
+
 def make_tests_linkable(test_list, url):
     """This function make test linkable and very specific to
     robottelo test suite.
     """
     test_list_links = ''
     for test in test_list:
+        test_url = (get_matched_jenkins_url(test, url_map=url))
         test_split = test.split('.')
         test_link = '</br><a href="{0}{1}/{2}/{3}" target="_blank">{4}</a></br>'. \
-            format(url, '.'.join(test_split[:-2]), "".join(test_split[-2:-1]),
+            format(test_url, '.'.join(test_split[:-2]), "".join(test_split[-2:-1]),
                    "".join(test_split[-1:]), test)
         test_list_links += test_link
     return test_list_links
 
 
-def build_content(tests, jenkins_url, with_link):
+def build_content(tests, jenkins_url=None, with_link=None):
     with open('email_template', 'r') as myfile:
         email_content = myfile.read()
     if isinstance(tests, dict):
