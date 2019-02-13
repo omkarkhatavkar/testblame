@@ -363,6 +363,8 @@ def show_all_tests(config):
 def show_manual_tests(config, local_repo, tags, component):
     """Filter and find tests based on tags"""
     config.repo_path = local_repo
+    test_count = 0
+    test_component = []
     test_details = {}
     if tags is not None:
         tags = str(tags).split(",")
@@ -379,12 +381,24 @@ def show_manual_tests(config, local_repo, tags, component):
                             test_details[author].append({test_path: test_map[test_path]})
                         break
     for author, author_tests in test_details.items():
-        echo_error("==" * 50)
+        echo_error("==" * 60)
         echo_error("{: ^50s}".format(author))
-        echo_error("==" * 50)
+        echo_error("==" * 60)
         for test_path in author_tests:
             for file_path, tests in test_path.items():
+                if 'test' in tests:
+                    test_count = test_count + len(tests.split('|'))
                 echo_success("##" * 30)
-                echo_success("{: ^50s}".format(file_path))
+                echo_skip("{: ^50s}   count={}".format(file_path,
+                                                       len(tests.split('|'))))
+                test_component.append("{}  count={}".
+                                      format(file_path,
+                                             len(tests.split('|'))))
                 echo_success("##" * 30)
                 echo_success(tests)
+    echo_error("==" * 50)
+    echo_error("{: ^50s}".format("Test Summery"))
+    echo_error("==" * 50)
+    for component in test_component:
+        echo_skip(component)
+    echo_error("Total Manual Test Count = {}".format(test_count))
