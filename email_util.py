@@ -4,6 +4,9 @@ import os
 import sendgrid
 from sendgrid.helpers.mail import Content, Email, Mail
 import re
+import plotly.plotly as py
+import plotly.graph_objs as go
+import uuid
 
 
 def send_email(from_email, to_email, subject, content):
@@ -63,5 +66,19 @@ def build_content(tests, jenkins_url=None, with_link=None):
                 table = author_col + test_col + make_tests_linkable(test_list, jenkins_url)
             email_content = email_content + table + "</td></tr>"
     email_content = email_content + "</table></body></html>"
+    save_email_content(email_content)
+    return email_content
+
+
+def building_graph(content, tags):
+    data = [go.Bar(
+        x=list(tags.keys()),
+        y=list(tags.values()),
+    )]
+    unique_id = uuid.uuid4()
+    graph_url_1 = py.plot(data, auto_open=False, filename='email-report-graph-1-{}'.format(unique_id))
+    graph_url_1_image = os.path.splitext(graph_url_1)[0]+".png"
+    email_content = content.replace('<=graph_url_1=>', graph_url_1)
+    email_content = email_content.replace('<=graph_url_1_image=>', graph_url_1_image)
     save_email_content(email_content)
     return email_content
