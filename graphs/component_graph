@@ -1,0 +1,10 @@
+<div id="myDiv"><!-- Plotly chart will be drawn inside this DIV --></div>
+  <script>
+    var data = [{
+  		x: <=Component=>,
+  		y: <=Count=>,
+  		type: 'bar'
+		}];
+
+	Plotly.newPlot('myDiv', data, {}, {showSendToCloud:true});
+  </script>
