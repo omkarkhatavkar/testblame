@@ -4,6 +4,9 @@ import os
 import sendgrid
 from sendgrid.helpers.mail import Content, Email, Mail
 import re
+import plotly.plotly as py
+import plotly.graph_objs as go
+import uuid
 
 
 def send_email(from_email, to_email, subject, content):
@@ -40,9 +43,14 @@ def make_tests_linkable(test_list, url):
     return test_list_links
 
 
+def get_file_content(file_path):
+    with open(file_path, 'r') as my_file:
+        return my_file.read()
+
+
 def build_content(tests, jenkins_url, with_link):
-    with open('email_template', 'r') as myfile:
-        email_content = myfile.read()
+    email_content = get_file_content('email_template')
+    content = ""
     if isinstance(tests, dict):
         for author, test_list in tests.items():
             if '@' in author:
@@ -53,7 +61,21 @@ def build_content(tests, jenkins_url, with_link):
             else:
                 test_col = "<td class=myclass>"
                 table = author_col + test_col + make_tests_linkable(test_list, jenkins_url)
-            email_content = email_content + table + "</td></tr>"
-    email_content = email_content + "</table></body></html>"
+            content = content + table + "</td></tr>"
+    email_content = email_content.replace('<=Report=>', content)
+    save_email_content(email_content)
+    return email_content
+
+
+def building_graph(content, tags):
+    data = [go.Bar(
+        x=list(tags.keys()),
+        y=list(tags.values()),
+    )]
+    unique_id = uuid.uuid4()
+    graph_url_1 = py.plot(data, auto_open=False, filename='email-report-graph-1-{}'.format(unique_id))
+    graph_url_1_image = os.path.splitext(graph_url_1)[0]+".png"
+    email_content = content.replace('<=graph_url_1=>', graph_url_1)
+    email_content = email_content.replace('<=graph_url_1_image=>', graph_url_1_image)
     save_email_content(email_content)
     return email_content

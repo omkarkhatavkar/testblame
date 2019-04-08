@@ -6,8 +6,10 @@ import operator
 import click
 import requests
 import re
+import xml.etree.ElementTree as ET
 from lxml import html
-from email_util import send_email, build_content
+from email_util import send_email, build_content, building_graph
+from collections import Counter
 
 requests.packages.urllib3.disable_warnings()
 
@@ -77,12 +79,13 @@ def check_test_path(test_name, test_path, filter):
             return test_path.split('\n')
         return test_path
     except subprocess.CalledProcessError:
-        for index in range(len(test_name)):
+        for index in range(1, len(test_name)):
             test_new_name = test_name[:len(test_name)-index]
-        return check_test_path(test_new_name, test_path, filter=None)
+            return check_test_path(test_new_name, test_path, filter=None)
 
 
 def get_git_blame_output(test_name, test_path):
+    test_name = re.sub("\[.*", "", test_name)
     cmd = ["/bin/grep -m 1 -irnh '{0}' {1} | cut -f1 -d:".format(test_name, test_path)]
     line_number = (subprocess.check_output
                    (cmd, shell=True, stderr=subprocess.STDOUT)).decode('utf-8').rstrip()
@@ -101,6 +104,23 @@ def remove_duplicate_test(test_path, test):
                 counter = counter+1
         counter_list[path] = counter
     return max(counter_list.items(), key=operator.itemgetter(1))[0]
+
+
+def custom_collect_failed_tests(url):
+    if bool(url.strip()):
+        try:
+            page = requests.get(url, verify=False, stream=True)
+            page.raw.decode_content = True  # ensure transfer encoding is honoured
+            tree = ET.parse(page.raw)
+            root = tree.getroot()
+            failed_tests = []
+            for child in root:
+                failed_tests.append(child.attrib.get('classname')+'.'+child.attrib.get('name'))
+            return failed_tests
+        except Exception as err:
+            return err
+    else:
+        raise Exception(echo_error("Something wrong with jenkins url/host"))
 
 
 def collect_failed_tests(url):
@@ -133,13 +153,11 @@ def get_test_blame(test, test_name, test_path, email, filter=""):
 
 def get_test_blame_with_author(test, test_name, test_path, email, filter=""):
     try:
-
         if not test_path.endswith('.py'):
             test_path = check_test_path(test_name=test_name, test_path=test_path, filter=filter)
         if isinstance(test_path, list):
             test_path = remove_duplicate_test(test_path, test)
         git_blame_output = get_git_blame_output(test_path=test_path, test_name=test_name)
-
         git_blame = (git_blame_output, test)
         return git_blame
     except subprocess.CalledProcessError:
@@ -157,7 +175,7 @@ def get_all_tests(test_path, tag):
 
 
 def find_tests(tag, repo_path):
-    test_paths = (check_test_path(test_name=tag, test_path=repo_path, filter=None))
+    test_paths = check_test_path(test_name=tag, test_path=repo_path, filter=None)
     test_map = {}
     for test_path in test_paths:
         tests = get_all_tests(test_path, tag)
@@ -189,7 +207,10 @@ def set_config(config, git_url, jenkins_url, clone_path):
     try:
         if None not in (git_url, jenkins_url):
             git_clone(git_url, config.repo_path)
-            failed_tests = collect_failed_tests(jenkins_url)
+            if 'jenkins' in jenkins_url:
+                failed_tests = collect_failed_tests(jenkins_url)
+            else:
+                failed_tests = custom_collect_failed_tests(jenkins_url)
             data_dict = {'failed_tests': failed_tests}
             data_dict['jenkins_url'] = jenkins_url
             with open('/tmp/failed_tests.txt', 'w') as filehandle:
@@ -213,7 +234,10 @@ def refresh_config(config, jenkins_url, clone_path):
     if jenkins_url is not None:
         if config.repo_path is not None:
             git_pull(config.repo_path)
-        failed_tests = collect_failed_tests(jenkins_url)
+        if 'jenkins' in jenkins_url:
+            failed_tests = collect_failed_tests(jenkins_url)
+        else:
+            failed_tests = custom_collect_failed_tests(jenkins_url)
         data_dict = {'failed_tests': failed_tests}
         data_dict['jenkins_url'] = jenkins_url
         with open('/tmp/failed_tests.txt', 'w') as filehandle:
@@ -279,14 +303,18 @@ def show_my_tests(config, local_repo, filter, email, skip):
               help="pass json file path containing author and component tags")
 @click.option('--with-link', default=None,
               help="pass this param to make the test as link")
+@click.option('--with-graph', default=None,
+              help="pass this generate the graph")
 @pass_config
 def send_email_report(config, local_repo, email, skip, filter,
-                      from_email, to_email, subject, component, with_link):
+                      from_email, to_email, subject, component, with_link, with_graph):
     """Send an email report based on git commit history"""
     failed_tests = get_all_failed_tests()
     author_tests = {}
+    test_testpath = []
     git_blame = ()
     repo_path = local_repo
+    count = 0
     if component is None:
         with click.progressbar(failed_tests, label='Searching failed tests') as bar:
             for test in bar:
@@ -296,7 +324,7 @@ def send_email_report(config, local_repo, email, skip, filter,
                         repo_path = config.repo_path + "/".join(test.split('.')[:2])
                         git_blame = get_test_blame_with_author(test, test_name, repo_path, email, filter)
                     elif local_repo is not None:
-                       git_blame = get_test_blame_with_author(test, test_name, local_repo, email, filter)
+                        git_blame = get_test_blame_with_author(test, test_name, local_repo, email, filter)
                     if git_blame[0] not in author_tests:
                         author_tests[git_blame[0]] = [git_blame[1]]
                     else:
@@ -311,6 +339,7 @@ def send_email_report(config, local_repo, email, skip, filter,
                     test_path = check_test_path(test_name=test_name, test_path=repo_path, filter=None)
                     if isinstance(test_path, list):
                         test_path = remove_duplicate_test(test_path, test)
+                    test_testpath.append(os.path.basename(test_path))
                     author_details = get_author_details(component)
                     for author, tags in author_details.items():
                         for tag in tags:
@@ -321,6 +350,10 @@ def send_email_report(config, local_repo, email, skip, filter,
                                     author_tests[author].append(test)
                                 break
     content = build_content(author_tests, get_jenkins_url(), with_link)
+    # tags = (list(itertools.chain.from_iterable(author_details.values())))
+    tags = dict(Counter(test_testpath))
+    if with_graph is not None:
+        content = building_graph(content, tags)
     for author, tests in author_tests.items():
         echo_error("==" * 55)
         echo_error("{: ^50s}".format(author))
@@ -355,6 +388,8 @@ def show_all_tests(config):
 def show_manual_tests(config, local_repo, tags, component):
     """Filter and find tests based on tags"""
     config.repo_path = local_repo
+    test_count = 0
+    test_component = []
     test_details = {}
     if tags is not None:
         tags = str(tags).split(",")
@@ -371,12 +406,24 @@ def show_manual_tests(config, local_repo, tags, component):
                             test_details[author].append({test_path: test_map[test_path]})
                         break
     for author, author_tests in test_details.items():
-        echo_error("==" * 50)
+        echo_error("==" * 60)
         echo_error("{: ^50s}".format(author))
-        echo_error("==" * 50)
+        echo_error("==" * 60)
         for test_path in author_tests:
             for file_path, tests in test_path.items():
+                if 'test' in tests:
+                    test_count = test_count + len(tests.split('|'))
                 echo_success("##" * 30)
-                echo_success("{: ^50s}".format(file_path))
+                echo_skip("{: ^50s}   count={}".format(file_path,
+                                                       len(tests.split('|'))))
+                test_component.append("{}  count={}".
+                                      format(file_path,
+                                             len(tests.split('|'))))
                 echo_success("##" * 30)
                 echo_success(tests)
+    echo_error("==" * 50)
+    echo_error("{: ^50s}".format("Test Summery"))
+    echo_error("==" * 50)
+    for component in test_component:
+        echo_skip(component)
+    echo_error("Total Manual Test Count = {}".format(test_count))

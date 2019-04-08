@@ -20,7 +20,10 @@ setup(
     py_modules=['testblame'],
     install_requires=required,
     packages=find_packages("testblame"),
-    entry_points={"console_scripts": ["testblame=testblame:cli"]},
+    entry_points='''
+        [console_scripts]
+        testblame=testblame:cli
+    ''',
     license='MIT',
     classifiers=[
         'License :: OSI Approved :: MIT License',

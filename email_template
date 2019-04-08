@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <style>
 table {
   width:100%;
@@ -53,4 +54,8 @@ a:hover{
     <th>Author Name</th>
     <th>Failed Test Names</th>
   </tr>
-
+  <=Report=>
+</table>
+  <a href="<=graph_url_1=>" target="_blank"><img src="<=graph_url_1_image=>"></a>
+</body>
+</html>
