@@ -1,0 +1,4 @@
+{
+    "william" : ["/suites/lib389/dsldapobject/","/suites/lib389/idm/user_compare_st_test"],
+    "Akshay adhikar" : ["suites/password/pwdPolicy_attribute_test","/suites/password/regression_test"]
+}
