@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 from lxml import html
 from email_util import send_email, build_content, building_graph
 from collections import Counter
+from db_utils import set_version
 
 requests.packages.urllib3.disable_warnings()
 
@@ -56,6 +57,14 @@ def get_all_failed_tests():
         failed_tests = [values for keys, values in failed_tests.items() if 'failed_tests' in keys]
         failed_tests = list(itertools.chain.from_iterable(failed_tests))
         return failed_tests
+
+
+def get_all_search_failed_test(search_string):
+    search_count = 0
+    for test in get_all_failed_tests():
+        if search_string in test:
+            search_count += 1
+    return search_count
 
 
 def get_jenkins_url_map():
@@ -216,8 +225,13 @@ def cli():
               help="Pass the jenkins url to collect the failed tests")
 @click.option('--clone-path', default="/tmp/test_repo/",
               help="Pass the path to clone repos to",)
+@click.option('--version', default="",
+              help="Pass the version of application",)
+@click.option('--dynamic-graph', default="",
+              help="create graph based on collection of tests based "
+                   "on search string",)
 @pass_config
-def set_config(config, git_url, jenkins_url, clone_path):
+def set_config(config, git_url, jenkins_url, clone_path, version, dynamic_graph):
     """Set git_url and jenkins_url to collect the
     failed tests"""
     config.repo_path = clone_path
@@ -227,6 +241,13 @@ def set_config(config, git_url, jenkins_url, clone_path):
         if None not in (git_url, jenkins_url):
             git_clone(git_url, config.repo_path)
             load_jenkins_urls(jenkins_url)
+            if version is not "" and dynamic_graph is not "":
+                set_version(version=version,
+                            failed_test_count=len(get_all_failed_tests()),
+                            search_string=dynamic_graph,
+                            dynamic_graph_count=get_all_search_failed_test(dynamic_graph))
+            else:
+                set_version(version=version, failed_test_count=len(get_all_failed_tests()))
         else:
             echo_error("Something went wrong !")
         echo_success("Configs are set correctly !")
@@ -309,13 +330,17 @@ def show_my_tests(config, local_repo, filter, email, skip):
               help="pass this param to make the test as link")
 @click.option('--with-graph', default=None,
               help="pass this generate the graph")
+@click.option('--dynamic-graph', default=None,
+              help="To generate dynamic graph pass pattern and Graph Name")
 @pass_config
 def send_email_report(config, local_repo, email, skip, filter,
-                      from_email, to_email, subject, component, with_link, with_graph):
+                      from_email, to_email, subject, component, with_link, with_graph,
+                      dynamic_graph):
     """Send an email report based on git commit history"""
     failed_tests = get_all_failed_tests()
     author_tests = {}
-    test_testpath = []
+    bar_chart = []
+    pie_chart = []
     git_blame = ()
     repo_path = local_repo
     if component is None:
@@ -342,7 +367,9 @@ def send_email_report(config, local_repo, email, skip, filter,
                     test_path = check_test_path(test_name=test_name, test_path=repo_path, filter=None)
                     if isinstance(test_path, list):
                         test_path = remove_duplicate_test(test_path, test)
-                    test_testpath.append(os.path.basename(test_path))
+                    if with_graph is not None:
+                        bar_chart.append(".".join(test.split('.')[2:4]))
+                        pie_chart.append(test.split('.')[2])
                     author_details = get_author_details(component)
                     for author, tags in author_details.items():
                         for tag in tags:
@@ -356,9 +383,10 @@ def send_email_report(config, local_repo, email, skip, filter,
         content = build_content(author_tests, get_jenkins_url_map(), with_link)
     else:
         content = build_content(author_tests)
-    tags = dict(Counter(test_testpath))
     if with_graph is not None:
-        content = building_graph(content, tags)
+        bar_chart = dict(Counter(bar_chart))
+        pie_chart = dict(Counter(pie_chart))
+        content = building_graph(content, bar_chart, pie_chart, dynamic_graph=dynamic_graph)
     for author, tests in author_tests.items():
         echo_error("==" * 55)
         echo_error("{: ^50s}".format(author))
@@ -366,9 +394,7 @@ def send_email_report(config, local_repo, email, skip, filter,
         echo_error("\n".join(tests))
     send_email(from_email=from_email, to_email=to_email,
                content=content, subject=subject)
-    if not len(author_tests) == 0:
-        echo_success("Email Report Sent Successfully! ")
-    else:
+    if len(author_tests) == 0:
         echo_success("No Tests Found!")
 
 
