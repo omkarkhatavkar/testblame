@@ -9,7 +9,7 @@ jsonschema==3.0.1
 jupyter-core==4.4.0
 lxml==4.2.5
 nbformat==4.4.0
-plotly==3.7.1
+plotly==4.1.0
 pyrsistent==0.14.11
 python-http-client==3.1.0
 pytz==2018.9

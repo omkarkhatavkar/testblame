@@ -4,7 +4,7 @@ import os
 import sendgrid
 from sendgrid.helpers.mail import Content, Email, Mail
 import re
-import plotly.plotly as py
+import chart_studio.plotly as py
 import plotly.graph_objs as go
 import uuid
 import smtplib
@@ -15,6 +15,7 @@ from db_utils import (
     set_test_fail_reason,
     get_dynamic_graph_history
     )
+import collections
 
 
 def send_email(from_email, to_email, subject, content):
@@ -112,32 +113,54 @@ def build_content(tests, jenkins_url, with_link):
     return email_content
 
 
-def building_graph(content, bar_chart, pie_chart, dynamic_graph = None):
-    data = [go.Bar(
-        x=list(bar_chart.keys()),
-        y=list(bar_chart.values()),
-        hoverinfo='x+y'
-    )]
-    data_2 = [go.Pie(
+def update_layout(data, title):
+    fig = go.Figure()
+    fig.add_trace(data)
+    fig.update_layout(
+        title=title,
+        autosize=False,
+        width=1000,
+        height=850,
+    )
+    return fig
+
+
+def building_graph(content, bar_chart, pie_chart, dynamic_graph=None):
+    bar_chart = collections.OrderedDict(bar_chart)
+    data = go.Bar(
+        x=list(bar_chart.values()),
+        y=list(bar_chart.keys()),
+        hoverinfo='x+y',
+        orientation='h',
+    )
+
+    data_2 = go.Pie(
         labels=[label.upper() for label in pie_chart.keys()],
         values=[value for value in pie_chart.values()],
         textinfo='value',
         hoverinfo='label+percent'
-    )]
+    )
     most_failed = sorted((value, key) for (key, value) in bar_chart.items())
     most_failed = most_failed[-10:]
-    most_failed_data = [go.Bar(
-        x=list([key[1] for key in most_failed]),
-        y=list([value[0] for value in most_failed]),
-        hoverinfo='x+y'
-    )]
+    most_failed_data = go.Bar(
+        x=list([value[0] for value in most_failed]),
+        y=list([key[1] for key in most_failed]),
+        hoverinfo='x+y',
+        orientation='h',
+
+    )
 
     unique_id_bar_chart = uuid.uuid4()
     unique_id_pie_chart = uuid.uuid4()
     unique_id_most_failed_chart = uuid.uuid4()
-    graph_url_1 = py.plot(data, auto_open=False, filename='email-report-graph-1-{}'.format(unique_id_bar_chart))
-    graph_url_2 = py.plot(data_2, auto_open=False, filename='email-report-graph-1-{}'.format(unique_id_pie_chart))
-    graph_url_3 = py.plot(most_failed_data, auto_open=False, filename='email-report-graph-1-{}'.
+    fig = update_layout(data=data, title="All Components")
+    graph_url_1 = py.plot(fig, auto_open=False,
+                          filename='email-report-graph-1-{}'.format(unique_id_bar_chart))
+    fig = update_layout(data=data_2, title="Test Failure Count By Test Type")
+    graph_url_2 = py.plot(fig, auto_open=False,
+                          filename='email-report-graph-1-{}'.format(unique_id_pie_chart))
+    fig = update_layout(data=most_failed_data, title="Most Failed Components")
+    graph_url_3 = py.plot(fig, auto_open=False, filename='email-report-graph-1-{}'.
                           format(unique_id_most_failed_chart))
 
     graph_url_1_image = os.path.splitext(graph_url_1)[0]+".png"
@@ -153,23 +176,25 @@ def building_graph(content, bar_chart, pie_chart, dynamic_graph = None):
     if dynamic_graph is not None:
         pattern, graph_name = str(dynamic_graph).split(',')
         test_history1 = get_dynamic_graph_history(pattern=pattern)
-        dynamic_trend = [go.Scatter(
+        dynamic_trend = go.Scatter(
             x=[i[0] for i in test_history1],
             y=[i[1] for i in test_history1],
-        )]
+        )
         unique_id_line_chart_1 = uuid.uuid4()
-        graph_url_5 = py.plot(dynamic_trend, auto_open=False, filename='email-report-graph-1-{}'.
+        fig = update_layout(data=dynamic_trend, title=graph_name)
+        graph_url_5 = py.plot(fig, auto_open=False, filename='email-report-graph-1-{}'.
                               format(unique_id_line_chart_1))
         graph_url_5_image = os.path.splitext(graph_url_5)[0] + ".png"
         email_content = email_content.replace('<=graph_url_5=>', graph_url_5)
         email_content = email_content.replace('<=graph_url_5_image=>', graph_url_5_image)
     if get_test_history() is not None:
         unique_id_line_chart = uuid.uuid4()
-        trend = [go.Scatter(
+        trend = go.Scatter(
             x=[i[0] for i in test_history],
             y=[i[1] for i in test_history],
-        )]
-        graph_url_4 = py.plot(trend, auto_open=False, filename='email-report-graph-1-{}'.
+        )
+        fig = update_layout(data=trend, title="Test Failure Trend")
+        graph_url_4 = py.plot(fig, auto_open=False, filename='email-report-graph-1-{}'.
                               format(unique_id_line_chart))
         graph_url_4_image = os.path.splitext(graph_url_4)[0] + ".png"
         email_content = email_content.replace('<=graph_url_4=>', graph_url_4)

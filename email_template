@@ -5,20 +5,15 @@
 <div id="charts">
 <a id="All" href="<=graph_url_1=>" target="_blank">
         <img src="<=graph_url_1_image=>"></a>
-<center><h3>All Failed Components</h3></center>
 
 <a id="Pie" href="<=graph_url_2=>" target="_blank">
     <img src="<=graph_url_2_image=>"></a>
-<center><h3>Pie Chart with Test Type</h3></center>
 <a id="Most" href="<=graph_url_3=>" target="_blank">
     <img src="<=graph_url_3_image=>"></a>
-<center><h3>Most Failed Components</h3></center>
 <a id="Trend" href="<=graph_url_4=>" target="_blank">
     <img src="<=graph_url_4_image=>"></a>
-<center><h3>Failure Trend</h3></center>
 <a id="dynamic_trend" href="<=graph_url_5=>" target="_blank">
     <img src="<=graph_url_5_image=>"></a>
-<center><h3>UI Failure Trend </h3></center>
 </br>
 <style>
 .charts{
