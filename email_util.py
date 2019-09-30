@@ -12,6 +12,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from db_utils import (
     get_test_history,
+    do_cleanup_history_without_reasons,
     set_test_fail_reason,
     get_dynamic_graph_history
     )
@@ -72,6 +73,7 @@ def make_tests_linkable(test_list, url):
     robottelo test suite.
     """
     test_list_links = ''
+    counter = 0
     for test in test_list:
         test_url = (get_matched_jenkins_url(test, url_map=url))
         test = if_test_is_parametrize(test)
@@ -84,8 +86,13 @@ def make_tests_linkable(test_list, url):
         test_link = '</br><a href="{0}{1}/{2}/{3}" target="_blank">{4}</a></br>'. \
             format(test_url, '.'.join(test_split[:-2]), "".join(test_split[-2:-1]),
                    "".join(test_split[-1:]), test)
+
+        # If Auto-Analysis
+        status = set_test_fail_reason(reason_url)
+        status = 'No Data Found for Auto-Analysis using testblame' \
+            if status is None else str(status)
+        test_link = '{}<p>===> {}</p>'.format(test_link, status)
         test_list_links += test_link
-        # set_test_fail_reason(reason_url)
     return test_list_links
 
 
@@ -97,6 +104,11 @@ def get_file_content(file_path):
 def build_content(tests, jenkins_url, with_link):
     email_content = get_file_content('email_template')
     content = ""
+    counter = 0
+    # cleanup DB
+    if counter == 0:
+        do_cleanup_history_without_reasons()
+        counter = counter + 1
     if isinstance(tests, dict):
         for author, test_list in tests.items():
             if '@' in author:
@@ -113,14 +125,14 @@ def build_content(tests, jenkins_url, with_link):
     return email_content
 
 
-def update_layout(data, title):
+def update_layout(data, title, width=800, height=700):
     fig = go.Figure()
     fig.add_trace(data)
     fig.update_layout(
         title=title,
         autosize=False,
-        width=1000,
-        height=850,
+        width=width,
+        height=height,
     )
     return fig
 
@@ -153,7 +165,7 @@ def building_graph(content, bar_chart, pie_chart, dynamic_graph=None):
     unique_id_bar_chart = uuid.uuid4()
     unique_id_pie_chart = uuid.uuid4()
     unique_id_most_failed_chart = uuid.uuid4()
-    fig = update_layout(data=data, title="All Components")
+    fig = update_layout(data=data, title="All Components", width=950, height=950)
     graph_url_1 = py.plot(fig, auto_open=False,
                           filename='email-report-graph-1-{}'.format(unique_id_bar_chart))
     fig = update_layout(data=data_2, title="Test Failure Count By Test Type")

@@ -38,8 +38,8 @@ def set_version(version, failed_test_count, dynamic_graph_count=None,
                           versions(id INTEGER PRIMARY KEY, 
                           version TEXT unique, test_count TEXT)''')
         cursor.execute('''CREATE TABLE IF NOT EXISTS
-                                  failed_reason(id INTEGER PRIMARY KEY, 
-                                  reason TEXT unique, count TEXT)''')
+                                  failures(id INTEGER PRIMARY KEY, 
+                                  failure TEXT unique, count TEXT, status TEXT)''')
         cursor.execute('''SELECT * FROM versions where version = ?''', (version,))
         is_version_exist = cursor.fetchone()
         if is_version_exist is None:
@@ -96,6 +96,7 @@ def get_dynamic_graph_history(pattern):
 
 
 def set_test_fail_reason(url):
+    status = None
     if bool(url.strip()):
         try:
             db = db_connect()
@@ -111,18 +112,19 @@ def set_test_fail_reason(url):
                 return None
             fail_reason = match_1 + match_2
             cursor = db.cursor()
-            cursor.execute('''SELECT * FROM failed_reason where reason = ?''', (fail_reason,))
+            cursor.execute('''SELECT * FROM failures where failure = ?''', (fail_reason,))
             is_version_exist = cursor.fetchone()
             if is_version_exist is None:
                 # insert failure reason
                 count = 1
-                cursor.execute('''INSERT INTO failed_reason(reason, count)
+                cursor.execute('''INSERT INTO failures(failure, count)
                                           VALUES(?, ?)''', (fail_reason, count))
             else:
                 # update count failure reasons
-                count = int(is_version_exist[0]) + 1
-                cursor.execute('''Update failed_reason set count = ? 
-                                                      where reason = ?''', (count, fail_reason))
+                count = int(is_version_exist[2]) + 1
+                cursor.execute('''Update failures set count = ? 
+                                                      where failure = ?''', (count, fail_reason))
+                status = is_version_exist[3]
             db.commit()
         except Exception as e:
             # Roll back any change if something goes wrong
@@ -131,5 +133,23 @@ def set_test_fail_reason(url):
         finally:
             # Close the db connection
             db.close()
+        return status
     else:
         return None
+
+
+def do_cleanup_history_without_reasons():
+    try:
+        db = db_connect()
+        cursor = db.cursor()
+        cursor.execute('delete from failures where status is NULL')
+        db.commit()
+        cursor = db.cursor()
+        cursor.execute('update failures set count = 0 where count > 0')
+        db.commit()
+    except Exception as e:
+        # Roll back any change if something goes wrong
+        db.rollback()
+    finally:
+        # Close the db connection
+        db.close()
