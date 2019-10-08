@@ -88,10 +88,10 @@ def make_tests_linkable(test_list, url):
                    "".join(test_split[-1:]), test)
 
         # If Auto-Analysis
-        # status = set_test_fail_reason(reason_url)
-        # status = 'No Data Found for Auto-Analysis using testblame' \
-        #    if status is None else str(status)
-        # test_link = '{}<p>===> {}</p>'.format(test_link, status)
+        status = set_test_fail_reason(reason_url)
+        status = 'No Data Found for Auto-Analysis using testblame'\
+            if status is None else str(status)
+        test_link = '{}<p><b> Auto Analysis ==> {}</b></p>'.format(test_link, status)
         test_list_links += test_link
     return test_list_links
 

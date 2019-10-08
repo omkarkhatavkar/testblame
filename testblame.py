@@ -12,6 +12,7 @@ from lxml import html
 from email_util import send_email, build_content, building_graph
 from collections import Counter
 from db_utils import set_version
+from plotly_utils import delete_all_earlier_charts
 
 requests.packages.urllib3.disable_warnings()
 
@@ -386,6 +387,7 @@ def send_email_report(config, local_repo, email, skip, filter,
     if with_graph is not None:
         bar_chart = dict(Counter(bar_chart))
         pie_chart = dict(Counter(pie_chart))
+        # delete_all_earlier_charts()
         content = building_graph(content, bar_chart, pie_chart, dynamic_graph=dynamic_graph)
     for author, tests in author_tests.items():
         echo_error("==" * 55)
