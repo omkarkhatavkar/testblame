@@ -66,16 +66,14 @@ def set_version(version, failed_test_count, dynamic_graph_count=None,
 
 def get_test_history():
     try:
-        import pdb
-        pdb.set_trace()
         db = db_connect()
         cursor = db.cursor()
         cursor.execute('''select version from versions order by version limit 1''')
         latest_version = cursor.fetchone()
-        versions = latest_version.split(" ")
-        current_version = versions[0]
+        versions = latest_version[0].split(" ")
+        current_version = str(versions[0])
         cursor.execute('''SELECT version, test_count FROM versions where version like ?''',
-                       ('%'+current_version+'%'))
+                       ('%'+current_version+'%',))
         all_rows = cursor.fetchall()
         return all_rows
     except Exception as e:
