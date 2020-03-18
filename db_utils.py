@@ -68,7 +68,7 @@ def get_test_history():
     try:
         db = db_connect()
         cursor = db.cursor()
-        cursor.execute('''select version from versions order by version limit 1''')
+        cursor.execute('''select version from versions order by id desc limit 1''')
         latest_version = cursor.fetchone()
         versions = latest_version[0].split(" ")
         current_version = str(versions[0])
