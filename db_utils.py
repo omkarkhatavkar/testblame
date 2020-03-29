@@ -131,7 +131,9 @@ def set_test_fail_reason(url):
                                                       where failure = ?''', (count, fail_reason))
                 status = is_version_exist[3]
             db.commit()
-        except (Exception, IndexError) as e:
+        except IndexError:
+            db.rollback()
+        except Exception as e:
             # Roll back any change if something goes wrong
             db.rollback()
             raise e
