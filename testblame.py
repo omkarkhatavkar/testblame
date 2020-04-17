@@ -13,6 +13,9 @@ from email_util import send_email, build_content, building_graph
 from collections import Counter
 from db_utils import set_version
 from plotly_utils import delete_all_earlier_charts
+from pyfiglet import Figlet
+custom_fig = Figlet(font='taxi____')
+
 
 requests.packages.urllib3.disable_warnings()
 
@@ -338,6 +341,7 @@ def send_email_report(config, local_repo, email, skip, filter,
                       from_email, to_email, subject, component, with_link, with_graph,
                       dynamic_graph):
     """Send an email report based on git commit history"""
+    echo_skip(custom_fig.renderText('tESTBLAME!!'))
     failed_tests = get_all_failed_tests()
     author_tests = {}
     bar_chart = []
